@@ -52,22 +52,18 @@ get_state() ->
 set_state(State) ->
     ets:insert(?BOSS_CACHE_TABLE, {state, State}).
 
-get_adapter_and_connection() ->
-    State = get_state(),
-    {State#state.adapter, State#state.connection}.
-
 set(Prefix, Key, Val, TTL) ->
-    {Adapter, Conn} = get_adapter_and_connection(),
+    #state{ adapter=Adapter, connection=Conn } = get_state(),
     Adapter:set(Conn, Prefix, Key, Val, TTL).
 
 get(Prefix, Key) ->
-    {Adapter, Conn} = get_adapter_and_connection(),
+    #state{ adapter=Adapter, connection=Conn } = get_state(),
     Adapter:get(Conn, Prefix, Key).
 
 delete(Prefix, Key) ->
-    {Adapter, Conn} = get_adapter_and_connection(),
+    #state{ adapter=Adapter, connection=Conn } = get_state(),
     Adapter:delete(Conn, Prefix, Key).
 
 terminate(_Reason) ->
-    {Adapter, Conn} = get_adapter_and_connection(),
+    #state{ adapter=Adapter, connection=Conn } = get_state(),
     Adapter:terminate(Conn).
