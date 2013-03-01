@@ -1,15 +1,17 @@
 -module(boss_cache).
 -export([start/0, start/1]).
 -export([stop/0]).
+-export([terminate/1]).
 -export([get/2, set/4, delete/2]).
 -export([terminate/1]).
 
+%% Maintain the adapter and connection state in a singleton ETS table entry
+%% rather than a pool of boss_cache_controller processes.
 -define(BOSS_CACHE_TABLE, boss_cache).
-
 -record(state, {
-        adapter,
-        connection
-    }).
+          adapter,
+          connection
+         }).
 
 start() ->
     Adapter = boss_cache_adapter_memcached_bin,
@@ -29,12 +31,14 @@ stop() ->
     teardown_table(),
     ok.
 
+%% Create a new empty table if none exists yet.
 setup_table() ->
     case ets:info(?BOSS_CACHE_TABLE) of
         undefined -> ets:new(?BOSS_CACHE_TABLE, [set, public, named_table, {read_concurrency, true}]);
         _X -> ets:delete_all_objects(?BOSS_CACHE_TABLE)
     end.
 
+%% Delete the table if one exists.
 teardown_table() ->
     case ets:info(?BOSS_CACHE_TABLE) of
         undefined -> ok;
@@ -50,26 +54,17 @@ set_state(State) ->
     ets:insert(?BOSS_CACHE_TABLE, {state, State}).
 
 set(Prefix, Key, Val, TTL) ->
-    State = get_state(),
-    Adapter = State#state.adapter,
-    Conn = State#state.connection,
+    #state{ adapter=Adapter, connection=Conn } = get_state(),
     Adapter:set(Conn, Prefix, Key, Val, TTL).
 
 get(Prefix, Key) ->
-    State = get_state(),
-    Adapter = State#state.adapter,
-    Conn = State#state.connection,
+    #state{ adapter=Adapter, connection=Conn } = get_state(),
     Adapter:get(Conn, Prefix, Key).
 
 delete(Prefix, Key) ->
-    State = get_state(),
-    Adapter = State#state.adapter,
-    Conn = State#state.connection,
+    #state{ adapter=Adapter, connection=Conn } = get_state(),
     Adapter:delete(Conn, Prefix, Key).
 
 terminate(_Reason) ->
-    State = get_state(),
-    Adapter = State#state.adapter,
-    Conn = State#state.connection,
+    #state{ adapter=Adapter, connection=Conn } = get_state(),
     Adapter:terminate(Conn).
-
